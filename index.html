@@ -67,9 +67,18 @@
       text-wrap: balance;
     }
 
+    .citation {
+      margin: 18px auto 0;
+      color: var(--accent);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+      line-height: 1.4;
+      font-style: italic;
+    }
+
     .subtitle {
       max-width: 780px;
-      margin: 22px auto 0;
+      margin: 12px auto 0;
       color: var(--muted);
       font-size: clamp(0.95rem, 1.3vw, 1.08rem);
       line-height: 1.7;
@@ -244,13 +253,14 @@
     }
 
     .viewer-image-wrap {
+      position: relative;
       min-width: 0;
       min-height: 0;
       display: grid;
       place-items: center;
       padding: 30px;
       background: #f2f1ed;
-      overflow: auto;
+      overflow: hidden;
     }
 
     .viewer-image-wrap img {
@@ -260,17 +270,25 @@
       width: auto;
       height: auto;
       object-fit: contain;
-      cursor: zoom-in;
-      transform-origin: center;
-      transition: transform 180ms ease;
+      cursor: crosshair;
     }
 
-    .viewer-image-wrap img.is-zoomed {
-      max-width: none;
-      max-height: none;
-      transform: scale(1.75);
-      cursor: zoom-out;
+    .zoom-lens {
+      position: absolute;
+      z-index: 2;
+      width: clamp(170px, 16vw, 240px);
+      aspect-ratio: 1;
+      display: none;
+      border: 3px solid rgba(255,255,255,0.94);
+      border-radius: 50%;
+      background-color: white;
+      background-repeat: no-repeat;
+      box-shadow: 0 14px 42px rgba(19, 24, 23, 0.30);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
     }
+
+    .zoom-lens.is-visible { display: block; }
 
     .viewer-copy {
       padding: clamp(30px, 4vw, 58px);
@@ -369,15 +387,6 @@
       background: white;
     }
 
-    .footer-note {
-      max-width: 880px;
-      margin: 58px auto 0;
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.86rem;
-      line-height: 1.6;
-    }
-
     @keyframes float {
       0%, 100% { margin-top: 0; }
       50% { margin-top: -8px; }
@@ -418,6 +427,11 @@
       .viewer-copy { border-left: 0; border-top: 1px solid var(--line); }
     }
 
+    @media (hover: none), (pointer: coarse) {
+      .viewer-image-wrap img { cursor: default; }
+      .zoom-lens { display: none !important; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -433,6 +447,7 @@
     <header class="masthead">
       <p class="eyebrow">Interactive figures</p>
       <h1>When curators become creators: A community of practice approach to vibe coding for teacher designers.</h1>
+      <p class="citation">(Noh &amp; Narayan, 2026)</p>
       <p class="subtitle">Select a figure to open a high-resolution view and read its accompanying explanation.</p>
     </header>
 
@@ -470,8 +485,6 @@
         </div>
       </button>
     </section>
-
-    <p class="footer-note">Tip: export each figure from your paper as a high-resolution PNG (or replace the filenames with SVG/PDF-derived web images). The viewer preserves the source image and scales it with <code>object-fit: contain</code> so labels remain readable.</p>
   </main>
 
   <div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
@@ -479,6 +492,7 @@
       <button class="close-btn" type="button" aria-label="Close figure viewer">×</button>
       <div class="viewer-image-wrap" id="viewer-image-wrap">
         <img id="viewer-image" alt="" />
+        <div class="zoom-lens" id="zoom-lens" aria-hidden="true"></div>
         <div class="viewer-placeholder" id="viewer-placeholder"></div>
       </div>
       <aside class="viewer-copy">
@@ -486,7 +500,6 @@
         <h2 id="viewer-title"></h2>
         <p id="viewer-description"></p>
         <div class="viewer-actions">
-          <button class="action-btn" type="button" id="zoom-btn">Zoom image</button>
           <a class="action-btn" id="original-link" href="#" target="_blank" rel="noopener">Open original</a>
         </div>
       </aside>
@@ -522,7 +535,8 @@
     const viewerTitle = document.getElementById("viewer-title");
     const viewerDescription = document.getElementById("viewer-description");
     const originalLink = document.getElementById("original-link");
-    const zoomBtn = document.getElementById("zoom-btn");
+    const zoomLens = document.getElementById("zoom-lens");
+    const viewerImageWrap = document.getElementById("viewer-image-wrap");
     const closeBtn = document.querySelector(".close-btn");
     let lastFocused = null;
 
@@ -546,12 +560,12 @@
       viewerDescription.textContent = fig.description;
       viewerImage.src = fig.src;
       viewerImage.alt = `${fig.number}: ${fig.title}`;
-      viewerImage.classList.remove("is-zoomed");
       viewerImage.style.display = "block";
+      zoomLens.classList.remove("is-visible");
+      zoomLens.style.backgroundImage = `url("${fig.src}")`;
       viewerPlaceholder.style.display = "none";
       viewerPlaceholder.textContent = `Add ${fig.src.replace("assets/", "")} to the assets folder to display this figure.`;
       originalLink.href = fig.src;
-      zoomBtn.textContent = "Zoom image";
 
       viewerImage.onerror = () => {
         viewerImage.style.display = "none";
@@ -566,13 +580,38 @@
     function closeViewer() {
       viewer.classList.remove("is-open");
       document.body.style.overflow = "";
-      viewerImage.classList.remove("is-zoomed");
+      zoomLens.classList.remove("is-visible");
       if (lastFocused) lastFocused.focus();
     }
 
-    function toggleZoom() {
-      const zoomed = viewerImage.classList.toggle("is-zoomed");
-      zoomBtn.textContent = zoomed ? "Fit image" : "Zoom image";
+    const zoomFactor = 2.6;
+
+    function updateLens(event) {
+      if (!viewerImage.src || viewerImage.style.display === "none") return;
+
+      const imageRect = viewerImage.getBoundingClientRect();
+      const wrapRect = viewerImageWrap.getBoundingClientRect();
+      const x = event.clientX - imageRect.left;
+      const y = event.clientY - imageRect.top;
+
+      if (x < 0 || y < 0 || x > imageRect.width || y > imageRect.height) {
+        zoomLens.classList.remove("is-visible");
+        return;
+      }
+
+      zoomLens.classList.add("is-visible");
+      const lensSize = zoomLens.offsetWidth;
+      const lensX = event.clientX - wrapRect.left;
+      const lensY = event.clientY - wrapRect.top;
+
+      zoomLens.style.left = `${lensX}px`;
+      zoomLens.style.top = `${lensY}px`;
+      zoomLens.style.backgroundSize = `${imageRect.width * zoomFactor}px ${imageRect.height * zoomFactor}px`;
+      zoomLens.style.backgroundPosition = `${-(x * zoomFactor - lensSize / 2)}px ${-(y * zoomFactor - lensSize / 2)}px`;
+    }
+
+    function hideLens() {
+      zoomLens.classList.remove("is-visible");
     }
 
     document.querySelectorAll(".figure-card").forEach((card) => {
@@ -580,8 +619,8 @@
     });
 
     closeBtn.addEventListener("click", closeViewer);
-    zoomBtn.addEventListener("click", toggleZoom);
-    viewerImage.addEventListener("click", toggleZoom);
+    viewerImageWrap.addEventListener("mousemove", updateLens);
+    viewerImageWrap.addEventListener("mouseleave", hideLens);
 
     viewer.addEventListener("click", (event) => {
       if (event.target === viewer) closeViewer();
