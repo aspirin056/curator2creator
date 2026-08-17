@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>When curators become creators — Interactive Figures</title>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --surface: rgba(255, 255, 255, 0.78);
+      --surface-strong: #ffffff;
+      --text: #1f2625;
+      --muted: #69716f;
+      --line: rgba(31, 38, 37, 0.12);
+      --accent: #325d54;
+      --accent-soft: #dfe9e5;
+      --shadow: 0 24px 70px rgba(37, 46, 44, 0.12);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 14% 16%, rgba(50, 93, 84, 0.08), transparent 30%),
+        radial-gradient(circle at 86% 24%, rgba(158, 132, 91, 0.08), transparent 28%),
+        linear-gradient(180deg, #faf9f6 0%, var(--bg) 100%);
+      overflow-x: hidden;
+    }
+
+    button, a { font: inherit; }
+
+    .page-shell {
+      width: min(1440px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 42px 0 64px;
+    }
+
+    .masthead {
+      max-width: 1100px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 750;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.2rem, 5.2vw, 5.1rem);
+      line-height: 1.02;
+      letter-spacing: -0.045em;
+      font-weight: 500;
+      text-wrap: balance;
+    }
+
+    .subtitle {
+      max-width: 780px;
+      margin: 22px auto 0;
+      color: var(--muted);
+      font-size: clamp(0.95rem, 1.3vw, 1.08rem);
+      line-height: 1.7;
+    }
+
+    .tripod-stage {
+      position: relative;
+      min-height: 820px;
+      margin: 34px auto 0;
+      isolation: isolate;
+    }
+
+    .tripod-stage::before {
+      content: "";
+      position: absolute;
+      inset: 14% 11% 10%;
+      z-index: -1;
+      border: 1px solid rgba(50, 93, 84, 0.08);
+      border-radius: 50%;
+      filter: blur(0.1px);
+    }
+
+    .tripod-stage::after {
+      content: "";
+      position: absolute;
+      width: 58%;
+      height: 58%;
+      left: 21%;
+      top: 20%;
+      z-index: -2;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(50, 93, 84, 0.08) 0%, rgba(50, 93, 84, 0) 68%);
+      filter: blur(12px);
+    }
+
+    .figure-card {
+      position: absolute;
+      width: min(36vw, 500px);
+      max-width: 500px;
+      border: 0;
+      padding: 0;
+      color: inherit;
+      text-align: left;
+      background: transparent;
+      cursor: zoom-in;
+      transition: transform 320ms cubic-bezier(.2,.7,.2,1), filter 320ms ease;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .figure-card:nth-child(2) { animation-delay: -2s; }
+    .figure-card:nth-child(3) { animation-delay: -4s; }
+
+    .figure-card:hover,
+    .figure-card:focus-visible {
+      transform: translateY(-10px) scale(1.025);
+      filter: drop-shadow(0 22px 28px rgba(37, 46, 44, 0.12));
+      outline: none;
+    }
+
+    .figure-card.one { left: 5%; top: 7%; }
+    .figure-card.two { right: 5%; top: 12%; }
+    .figure-card.three { left: 50%; bottom: 0; transform: translateX(-50%); }
+    .figure-card.three:hover,
+    .figure-card.three:focus-visible { transform: translateX(-50%) translateY(-10px) scale(1.025); }
+
+    .image-frame {
+      position: relative;
+      min-height: 255px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid rgba(31, 38, 37, 0.09);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.92), rgba(248,248,245,0.72));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .image-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-height: 350px;
+      object-fit: contain;
+      background: white;
+    }
+
+    .image-frame::after {
+      content: "View figure";
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      color: white;
+      background: rgba(31, 38, 37, 0.76);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      opacity: 0;
+      transform: translateY(-5px);
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .figure-card:hover .image-frame::after,
+    .figure-card:focus-visible .image-frame::after {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .figure-meta {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 15px 4px 0;
+    }
+
+    .figure-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 76px;
+      height: 30px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .figure-title {
+      margin: 2px 0 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1rem;
+      line-height: 1.36;
+      font-weight: 500;
+    }
+
+    .viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      visibility: hidden;
+      opacity: 0;
+      background: rgba(19, 24, 23, 0.60);
+      backdrop-filter: blur(12px);
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+
+    .viewer.is-open {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .viewer-panel {
+      position: relative;
+      width: min(1520px, 98vw);
+      height: min(900px, 93vh);
+      display: grid;
+      grid-template-columns: minmax(0, 1.72fr) minmax(320px, 0.72fr);
+      overflow: hidden;
+      border-radius: 28px;
+      background: var(--surface-strong);
+      box-shadow: 0 32px 100px rgba(0, 0, 0, 0.28);
+    }
+
+    .viewer-image-wrap {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: 30px;
+      background: #f2f1ed;
+      overflow: auto;
+    }
+
+    .viewer-image-wrap img {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      cursor: zoom-in;
+      transform-origin: center;
+      transition: transform 180ms ease;
+    }
+
+    .viewer-image-wrap img.is-zoomed {
+      max-width: none;
+      max-height: none;
+      transform: scale(1.75);
+      cursor: zoom-out;
+    }
+
+    .viewer-copy {
+      padding: clamp(30px, 4vw, 58px);
+      overflow-y: auto;
+      border-left: 1px solid var(--line);
+      background: rgba(255,255,255,0.96);
+    }
+
+    .viewer-copy .figure-number { margin-bottom: 20px; }
+
+    .viewer-copy h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.8rem, 2.5vw, 3.1rem);
+      line-height: 1.08;
+      letter-spacing: -0.025em;
+      font-weight: 500;
+    }
+
+    .viewer-copy p {
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.75;
+    }
+
+    .viewer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 34px;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      text-decoration: none;
+      background: white;
+      cursor: pointer;
+      transition: background 180ms ease, transform 180ms ease;
+    }
+
+    .action-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
+
+    .close-btn {
+      position: absolute;
+      z-index: 3;
+      top: 16px;
+      right: 16px;
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      color: white;
+      background: rgba(31, 38, 37, 0.80);
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    .placeholder {
+      width: 100%;
+      min-height: 255px;
+      display: none;
+      place-items: center;
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      background:
+        linear-gradient(135deg, rgba(50, 93, 84, 0.05), rgba(255,255,255,0.9)),
+        repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(31,38,37,.035) 24px);
+    }
+
+    .placeholder strong {
+      display: block;
+      color: var(--text);
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+
+    .viewer-placeholder {
+      width: min(720px, 92%);
+      aspect-ratio: 4 / 3;
+      display: none;
+      place-items: center;
+      padding: 40px;
+      border: 1px dashed rgba(31,38,37,.24);
+      border-radius: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: white;
+    }
+
+    .footer-note {
+      max-width: 880px;
+      margin: 58px auto 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    @keyframes float {
+      0%, 100% { margin-top: 0; }
+      50% { margin-top: -8px; }
+    }
+
+    @media (max-width: 920px) {
+      .page-shell { width: min(100% - 24px, 820px); padding-top: 28px; }
+      .tripod-stage {
+        min-height: unset;
+        display: grid;
+        gap: 34px;
+        margin-top: 42px;
+      }
+      .figure-card,
+      .figure-card.one,
+      .figure-card.two,
+      .figure-card.three {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        max-width: none;
+        transform: none;
+        animation: none;
+      }
+      .figure-card:hover,
+      .figure-card:focus-visible,
+      .figure-card.three:hover,
+      .figure-card.three:focus-visible { transform: translateY(-6px); }
+      .image-frame { min-height: 220px; }
+      .viewer { padding: 10px; }
+      .viewer-panel {
+        width: 100%;
+        height: 96vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(48%, 1fr) auto;
+        border-radius: 20px;
+      }
+      .viewer-copy { border-left: 0; border-top: 1px solid var(--line); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="masthead">
+      <p class="eyebrow">Interactive figures</p>
+      <h1>When curators become creators: A community of practice approach to vibe coding for teacher designers.</h1>
+      <p class="subtitle">Select a figure to open a high-resolution view and read its accompanying explanation.</p>
+    </header>
+
+    <section class="tripod-stage" aria-label="Paper figures">
+      <button class="figure-card one" type="button" data-figure="1" aria-label="Open Figure 1">
+        <div class="image-frame">
+          <img src="assets/figure-1.png" alt="Figure 1: theoretical framework of teachers becoming designers through vibe coding within a community of practice" />
+          <div class="placeholder"><div><strong>Figure 1 image</strong>Place <code>figure-1.png</code> in the <code>assets</code> folder.</div></div>
+        </div>
+        <div class="figure-meta">
+          <span class="figure-number">Figure 1</span>
+          <p class="figure-title">A theoretical framework of teachers becoming designers through vibe coding within a community of practice</p>
+        </div>
+      </button>
+
+      <button class="figure-card two" type="button" data-figure="2" aria-label="Open Figure 2">
+        <div class="image-frame">
+          <img src="assets/figure-2.png" alt="Figure 2: autogenerated questions application—Qraft" />
+          <div class="placeholder"><div><strong>Figure 2 image</strong>Place <code>figure-2.png</code> in the <code>assets</code> folder.</div></div>
+        </div>
+        <div class="figure-meta">
+          <span class="figure-number">Figure 2</span>
+          <p class="figure-title">Autogenerated questions application—Qraft</p>
+        </div>
+      </button>
+
+      <button class="figure-card three" type="button" data-figure="3" aria-label="Open Figure 3">
+        <div class="image-frame">
+          <img src="assets/figure-3.png" alt="Figure 3: Katrina’s documentation of her teaching framework for entrepreneurship" />
+          <div class="placeholder"><div><strong>Figure 3 image</strong>Place <code>figure-3.png</code> in the <code>assets</code> folder.</div></div>
+        </div>
+        <div class="figure-meta">
+          <span class="figure-number">Figure 3</span>
+          <p class="figure-title">C.E.O+A: Katrina’s documentation of her teaching framework for entrepreneurship</p>
+        </div>
+      </button>
+    </section>
+
+    <p class="footer-note">Tip: export each figure from your paper as a high-resolution PNG (or replace the filenames with SVG/PDF-derived web images). The viewer preserves the source image and scales it with <code>object-fit: contain</code> so labels remain readable.</p>
+  </main>
+
+  <div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
+    <div class="viewer-panel">
+      <button class="close-btn" type="button" aria-label="Close figure viewer">×</button>
+      <div class="viewer-image-wrap" id="viewer-image-wrap">
+        <img id="viewer-image" alt="" />
+        <div class="viewer-placeholder" id="viewer-placeholder"></div>
+      </div>
+      <aside class="viewer-copy">
+        <span class="figure-number" id="viewer-number"></span>
+        <h2 id="viewer-title"></h2>
+        <p id="viewer-description"></p>
+        <div class="viewer-actions">
+          <button class="action-btn" type="button" id="zoom-btn">Zoom image</button>
+          <a class="action-btn" id="original-link" href="#" target="_blank" rel="noopener">Open original</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const figures = {
+      1: {
+        number: "Figure 1",
+        title: "A theoretical framework of teachers becoming designers through vibe coding within a community of practice",
+        src: "assets/figure-1.png",
+        description: "This figure presents the paper’s theoretical framework, showing how teachers can move from curating existing resources toward creating and adapting digital tools through vibe coding within a community of practice. Replace this text with the figure explanation or interpretive note you want readers to see."
+      },
+      2: {
+        number: "Figure 2",
+        title: "Autogenerated questions application—Qraft",
+        src: "assets/figure-2.png",
+        description: "This figure shows Qraft, an autogenerated-questions application developed through the vibe-coding process. Replace this text with the explanation used in your paper—for example, what the tool does, how it was created, and why it matters to the teacher-design process."
+      },
+      3: {
+        number: "Figure 3",
+        title: "C.E.O+A: Katrina’s documentation of her teaching framework for entrepreneurship",
+        src: "assets/figure-3.png",
+        description: "This figure presents Katrina’s documentation of the C.E.O+A teaching framework for entrepreneurship. Replace this text with your paper’s explanation of how the framework was documented, developed, or used as evidence of teacher design and knowledge creation."
+      }
+    };
+
+    const viewer = document.getElementById("viewer");
+    const viewerImage = document.getElementById("viewer-image");
+    const viewerPlaceholder = document.getElementById("viewer-placeholder");
+    const viewerNumber = document.getElementById("viewer-number");
+    const viewerTitle = document.getElementById("viewer-title");
+    const viewerDescription = document.getElementById("viewer-description");
+    const originalLink = document.getElementById("original-link");
+    const zoomBtn = document.getElementById("zoom-btn");
+    const closeBtn = document.querySelector(".close-btn");
+    let lastFocused = null;
+
+    function applyFallback(img) {
+      const placeholder = img.nextElementSibling;
+      img.style.display = "none";
+      if (placeholder) placeholder.style.display = "grid";
+    }
+
+    document.querySelectorAll(".image-frame img").forEach((img) => {
+      img.addEventListener("error", () => applyFallback(img));
+    });
+
+    function openViewer(id) {
+      const fig = figures[id];
+      if (!fig) return;
+      lastFocused = document.activeElement;
+
+      viewerNumber.textContent = fig.number;
+      viewerTitle.textContent = fig.title;
+      viewerDescription.textContent = fig.description;
+      viewerImage.src = fig.src;
+      viewerImage.alt = `${fig.number}: ${fig.title}`;
+      viewerImage.classList.remove("is-zoomed");
+      viewerImage.style.display = "block";
+      viewerPlaceholder.style.display = "none";
+      viewerPlaceholder.textContent = `Add ${fig.src.replace("assets/", "")} to the assets folder to display this figure.`;
+      originalLink.href = fig.src;
+      zoomBtn.textContent = "Zoom image";
+
+      viewerImage.onerror = () => {
+        viewerImage.style.display = "none";
+        viewerPlaceholder.style.display = "grid";
+      };
+
+      viewer.classList.add("is-open");
+      document.body.style.overflow = "hidden";
+      closeBtn.focus();
+    }
+
+    function closeViewer() {
+      viewer.classList.remove("is-open");
+      document.body.style.overflow = "";
+      viewerImage.classList.remove("is-zoomed");
+      if (lastFocused) lastFocused.focus();
+    }
+
+    function toggleZoom() {
+      const zoomed = viewerImage.classList.toggle("is-zoomed");
+      zoomBtn.textContent = zoomed ? "Fit image" : "Zoom image";
+    }
+
+    document.querySelectorAll(".figure-card").forEach((card) => {
+      card.addEventListener("click", () => openViewer(card.dataset.figure));
+    });
+
+    closeBtn.addEventListener("click", closeViewer);
+    zoomBtn.addEventListener("click", toggleZoom);
+    viewerImage.addEventListener("click", toggleZoom);
+
+    viewer.addEventListener("click", (event) => {
+      if (event.target === viewer) closeViewer();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (!viewer.classList.contains("is-open")) return;
+      if (event.key === "Escape") closeViewer();
+    });
+  </script>
+</body>
+</html>
