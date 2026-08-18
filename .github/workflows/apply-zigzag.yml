@@ -1,0 +1,93 @@
+name: Apply zigzag layout
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-zigzag.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply layout changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          marker = '/* zigzag-four-v2 */'
+          if marker in s:
+              raise SystemExit(0)
+
+          override = r'''
+          /* zigzag-four-v2 */
+          @media (min-width: 921px) {
+            .title-line.primary {
+              font-size: clamp(2.4rem, 5.2vw, 5.1rem);
+              letter-spacing: -0.045em;
+            }
+            .title-line.secondary {
+              margin-top: 4px;
+              font-size: clamp(2.2rem, 2.9vw, 3.35rem);
+              letter-spacing: -0.038em;
+              white-space: nowrap;
+            }
+            .gallery {
+              width: min(1180px, 100%);
+              margin: 30px auto 0;
+              padding: 12px 34px 42px;
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              grid-template-rows: repeat(4, auto);
+              column-gap: 38px;
+              row-gap: 18px;
+              isolation: isolate;
+            }
+            .card {
+              width: min(43vw, 520px);
+              max-width: 520px;
+            }
+            .card:nth-child(1) {
+              grid-column: 1;
+              grid-row: 1;
+              justify-self: start;
+            }
+            .card:nth-child(2) {
+              grid-column: 2;
+              grid-row: 2;
+              justify-self: end;
+            }
+            .card:nth-child(3) {
+              grid-column: 1;
+              grid-row: 3;
+              justify-self: start;
+            }
+            .card:nth-child(4) {
+              grid-column: 2;
+              grid-row: 4;
+              justify-self: end;
+            }
+          }
+          '''
+          s = s.replace('</style>', override + '\n</style>')
+          p.write_text(s)
+          PY
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Arrange four materials in zigzag layout'
+          git push
