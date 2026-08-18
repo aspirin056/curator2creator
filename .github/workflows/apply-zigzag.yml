@@ -15,136 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply responsive title and overlapping zigzag refinements
+      - name: Increase zigzag overlap by 15 percent
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text()
-          marker = '/* responsive-polish-v4 */'
+          marker = '/* overlap-plus-15-v5 */'
           if marker in s:
               raise SystemExit(0)
 
           override = r'''
-          /* responsive-polish-v4 */
-          .masthead {
-            width: 100%;
-            max-width: 1440px;
-            margin-left: auto;
-            margin-right: auto;
-            padding-left: clamp(10px, 2vw, 28px);
-            padding-right: clamp(10px, 2vw, 28px);
-            text-align: center;
-          }
-
-          .masthead h1 {
-            width: 100%;
-            max-width: 100%;
-            margin-left: auto;
-            margin-right: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-          }
-
-          .title-line {
-            width: 100%;
-            max-width: 100%;
-            margin-left: auto;
-            margin-right: auto;
-            text-align: center;
-          }
-
-          .title-line.primary {
-            max-width: 1280px;
-            font-size: clamp(2.45rem, 5vw, 5.1rem);
-            line-height: 1.02;
-          }
-
-          .title-line.secondary {
-            max-width: 1400px;
-            margin-top: 3px;
-            padding-left: 8px;
-            padding-right: 8px;
-            font-size: clamp(2.35rem, 3.85vw, 4.45rem);
-            line-height: 1.05;
-            letter-spacing: -0.04em;
-            white-space: normal;
-            text-wrap: balance;
-            overflow-wrap: normal;
-          }
-
+          /* overlap-plus-15-v5 */
           @media (min-width: 921px) {
-            .gallery {
-              overflow: visible;
-            }
-
-            .card:nth-child(2) {
-              top: -62px;
-            }
-
-            .card:nth-child(3) {
-              top: -124px;
-            }
-
-            .card:nth-child(4) {
-              top: -186px;
-            }
+            .card:nth-child(2) { top: -71px; }
+            .card:nth-child(3) { top: -143px; }
+            .card:nth-child(4) { top: -214px; }
           }
 
           @media (min-width: 921px) and (max-height: 820px) {
-            .card:nth-child(2) {
-              top: -56px;
-            }
-
-            .card:nth-child(3) {
-              top: -112px;
-            }
-
-            .card:nth-child(4) {
-              top: -168px;
-            }
-          }
-
-          @media (max-width: 1200px) {
-            .title-line.primary {
-              font-size: clamp(2.35rem, 6vw, 4rem);
-            }
-
-            .title-line.secondary {
-              font-size: clamp(2rem, 4.7vw, 3.25rem);
-              line-height: 1.08;
-              padding-left: 12px;
-              padding-right: 12px;
-            }
-          }
-
-          @media (max-width: 920px) {
-            .masthead {
-              padding-left: 4px;
-              padding-right: 4px;
-            }
-
-            .masthead h1,
-            .title-line {
-              width: 100%;
-              max-width: 100%;
-            }
-
-            .title-line.primary {
-              font-size: clamp(2.15rem, 8vw, 3.15rem);
-            }
-
-            .title-line.secondary {
-              font-size: clamp(1.75rem, 6.4vw, 2.55rem);
-              line-height: 1.08;
-              padding-left: 2px;
-              padding-right: 2px;
-              white-space: normal;
-              text-wrap: balance;
-            }
+            .card:nth-child(2) { top: -64px; }
+            .card:nth-child(3) { top: -129px; }
+            .card:nth-child(4) { top: -193px; }
           }
           '''
           s = s.replace('</style>', override + '\n</style>')
@@ -160,5 +53,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m 'Polish responsive title and overlap zigzag cards'
+          git commit -m 'Increase zigzag overlap by 15 percent'
           git push
